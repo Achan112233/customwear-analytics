@@ -3,7 +3,7 @@ from decimal import Decimal
 
 from sqlalchemy import select
 
-from app.database import Base, SessionLocal, engine
+from app.database import SessionLocal
 from app.models import Transaction
 
 CUSTOMERS = {
@@ -15,7 +15,6 @@ CUSTOMERS = {
 
 
 def main() -> None:
-    Base.metadata.create_all(bind=engine)
     now = datetime.now(UTC)
     with SessionLocal() as db:
         index = 0

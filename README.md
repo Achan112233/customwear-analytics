@@ -46,6 +46,34 @@ A production-oriented customer analytics backend for an apparel brand. The API i
    curl -X POST http://localhost:8000/api/v1/segments/run
    ```
 
+5. Connect directly to PostgreSQL when you want to inspect the stored data:
+
+   ```bash
+   docker compose exec postgres psql -U analytics -d analytics
+   ```
+
+   Inside `psql`, run `\dt` to list the analytics tables or query the latest segments:
+
+   ```sql
+   SELECT customer_id, segment, monetary_value
+   FROM customer_segments
+   ORDER BY run_id DESC, monetary_value DESC;
+   ```
+
+## Database migrations
+
+The API container automatically runs pending Alembic migrations before it starts. For local development outside Docker, run:
+
+```bash
+alembic upgrade head
+```
+
+Create a migration after changing the SQLAlchemy models with:
+
+```bash
+alembic revision --autogenerate -m "describe the schema change"
+```
+
 ## Main API routes
 
 - `POST /api/v1/transactions` - ingest one transaction
@@ -82,5 +110,5 @@ pytest
 ruff check .
 ```
 
-The test configuration uses SQLite, while local and production runtime configurations use PostgreSQL.
+Local unit tests can use SQLite for speed. GitHub Actions provisions PostgreSQL 16, applies every migration, and runs the full API test suite against it so PostgreSQL compatibility is continuously verified.
 

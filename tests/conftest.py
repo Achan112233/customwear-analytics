@@ -1,7 +1,7 @@
 import os
 
-os.environ["DATABASE_URL"] = "sqlite:///./test_analytics.db"
-os.environ["API_KEY"] = ""
+os.environ.setdefault("DATABASE_URL", "sqlite:///./test_analytics.db")
+os.environ.setdefault("API_KEY", "")
 
 import pytest
 from fastapi.testclient import TestClient

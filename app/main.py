@@ -1,22 +1,13 @@
-from contextlib import asynccontextmanager
-
 from fastapi import FastAPI
 from redis import Redis
 from sqlalchemy import text
 
 from app.api import router
 from app.config import get_settings
-from app.database import Base, engine
-
-
-@asynccontextmanager
-async def lifespan(_: FastAPI):
-    Base.metadata.create_all(bind=engine)
-    yield
-
+from app.database import engine
 
 settings = get_settings()
-app = FastAPI(title=settings.app_name, version="1.0.0", lifespan=lifespan)
+app = FastAPI(title=settings.app_name, version="1.0.0")
 app.include_router(router)
 
 
