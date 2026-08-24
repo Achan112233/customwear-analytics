@@ -3,7 +3,6 @@ name: Deploy to Amazon ECS
 on:
   workflow_dispatch:
   push:
-    branches: [main]
     tags: ["v*"]
 
 permissions:
@@ -51,4 +50,3 @@ jobs:
           service: ${{ env.ECS_SERVICE }}
           cluster: ${{ env.ECS_CLUSTER }}
           wait-for-service-stability: true
-
