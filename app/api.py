@@ -4,7 +4,7 @@ from uuid import uuid4
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from redis import Redis
 from rq import Queue
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -14,6 +14,7 @@ from app.models import AnalyticsJob, CustomerSegment, JobStatus, SegmentRun, Tra
 from app.schemas import (
     BatchResult,
     BatchTransactions,
+    CustomerPage,
     JobRead,
     RunResult,
     SegmentCount,
@@ -114,6 +115,43 @@ def get_segment_summary(db: Database) -> SegmentSummary:
             for name, count, value in rows
         ],
     )
+
+
+@router.get("/customers", response_model=CustomerPage)
+def list_customers(
+    db: Database,
+    segment: Annotated[str | None, Query(max_length=100)] = None,
+    search: Annotated[str | None, Query(max_length=100)] = None,
+    limit: Annotated[int, Query(ge=1, le=200)] = 50,
+    offset: Annotated[int, Query(ge=0)] = 0,
+) -> CustomerPage:
+    run_id = db.scalar(select(SegmentRun.id).order_by(SegmentRun.id.desc()).limit(1))
+    if run_id is None:
+        return CustomerPage(items=[], total=0, limit=limit, offset=offset)
+
+    filters = [CustomerSegment.run_id == run_id]
+    if segment:
+        filters.append(CustomerSegment.segment == segment)
+    if search:
+        pattern = f"%{search.strip()}%"
+        filters.append(
+            or_(
+                CustomerSegment.customer_id.ilike(pattern),
+                CustomerSegment.favorite_category.ilike(pattern),
+            )
+        )
+
+    total = db.scalar(select(func.count(CustomerSegment.id)).where(*filters)) or 0
+    items = list(
+        db.scalars(
+            select(CustomerSegment)
+            .where(*filters)
+            .order_by(CustomerSegment.monetary_value.desc(), CustomerSegment.customer_id)
+            .limit(limit)
+            .offset(offset)
+        )
+    )
+    return CustomerPage(items=items, total=total, limit=limit, offset=offset)
 
 
 @router.get("/customers/{customer_id}", response_model=SegmentCustomer)

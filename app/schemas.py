@@ -42,6 +42,13 @@ class SegmentCustomer(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+class CustomerPage(BaseModel):
+    items: list[SegmentCustomer]
+    total: int
+    limit: int
+    offset: int
+
+
 class SegmentCount(BaseModel):
     segment: str
     customer_count: int
