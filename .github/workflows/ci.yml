@@ -36,6 +36,8 @@ jobs:
       - run: ruff check .
       - run: alembic upgrade head
       - run: pytest
+      - name: Check offline evaluation harness (no model calls)
+        run: python -m evals.run
       - run: docker build -t customwear-api:${{ github.sha }} .
 
   frontend:

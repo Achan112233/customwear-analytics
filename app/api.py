@@ -24,6 +24,12 @@ from app.schemas import (
     TransactionRead,
 )
 from app.security import require_api_key
+from app.services.insights import (
+    Insight,
+    InsightsUnavailable,
+    InvalidInsight,
+    generate_insight,
+)
 from app.services.segmentation import run_segmentation
 from app.tasks import execute_segmentation
 
@@ -173,3 +179,17 @@ def get_job(job_id: str, db: Database) -> AnalyticsJob:
     if job is None:
         raise HTTPException(status_code=404, detail="Job not found")
     return job
+
+
+@router.post("/customers/{customer_id}/insights", response_model=Insight)
+def create_customer_insight(customer_id: str, db: Database) -> Insight:
+    # Require authentication even when the rest of the development API is open.
+    if not get_settings().api_key:
+        raise HTTPException(status_code=503, detail="Configure API_KEY before enabling AI insights")
+    customer = SegmentCustomer.model_validate(get_customer(customer_id, db))
+    try:
+        return generate_insight(customer)
+    except InsightsUnavailable as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except InvalidInsight as exc:
+        raise HTTPException(status_code=502, detail="AI response failed grounding checks") from exc

@@ -118,6 +118,17 @@ flowchart TD
 
 The hosted dashboard calls the FastAPI ingestion and analytics routes, with local demo data available when no API URL is configured. The API stores raw transactions immediately, while a segmentation run aggregates them into RFM features and writes an immutable snapshot. Redis isolates longer analytics work from API traffic, and PostgreSQL retains both operational records and historical segment output. GitHub Actions independently validates the frontend and PostgreSQL-backed API before the versioned API image is released to ECR and ECS.
 
+## AI recommendations
+
+An optional Claude-backed endpoint selects grounded marketing recommendations from stored
+customer metrics: `POST /api/v1/customers/{customer_id}/insights`. It requires server-side
+API credentials and rejects altered facts or unsupported actions. Existing segmentation
+remains rule-based. No model calls occur during normal tests or CI.
+
+See [AI setup and evaluation guide](docs/ai-insights.md) for configuration, limitations,
+synthetic test cases, opt-in live evaluation, and regression comparisons. This is a backend
+feature; dashboard integration is not included yet.
+
 ## Development
 
 Backend:
