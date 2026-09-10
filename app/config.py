@@ -10,7 +10,7 @@ class Settings(BaseSettings):
     redis_url: str = "redis://localhost:6379/0"
     segmentation_queue: str = "analytics"
     api_key: str | None = None
-    anthropic_api_key: str | None = None
+    openai_api_key: str | None = None
     insights_model: str | None = None
     cors_origins: str = "http://localhost:3000,http://localhost:5173"
 

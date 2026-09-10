@@ -66,7 +66,7 @@ def test_api_success_and_model_rejection(client, monkeypatch, customer):
 
 
 def test_provider_timeout_and_truncation(customer, monkeypatch):
-    monkeypatch.setattr(get_settings(), "anthropic_api_key", "secret")
+    monkeypatch.setattr(get_settings(), "openai_api_key", "secret")
     monkeypatch.setattr(get_settings(), "insights_model", "test")
 
     def timeout(*args, **kwargs):
@@ -80,8 +80,8 @@ def test_provider_timeout_and_truncation(customer, monkeypatch):
         "post",
         lambda *a, **k: httpx.Response(
             200,
-            request=httpx.Request("POST", "https://api.anthropic.com"),
-            json={"stop_reason": "max_tokens", "content": []},
+            request=httpx.Request("POST", "https://api.openai.com"),
+            json={"status": "incomplete", "output": []},
         ),
     )
     with pytest.raises(insights.InvalidInsight):
@@ -99,6 +99,30 @@ def customer():
         monetary_value="40.00",
         favorite_category="tops",
     )
+
+
+@pytest.mark.parametrize(
+    "output",
+    [
+        [],
+        [{"type": "reasoning", "summary": []}],
+        [{"type": "message", "content": [{"type": "refusal", "refusal": "Declined"}]}],
+    ],
+)
+def test_provider_rejects_empty_and_refused_output(customer, monkeypatch, output):
+    monkeypatch.setattr(get_settings(), "openai_api_key", "test")
+    monkeypatch.setattr(get_settings(), "insights_model", "test")
+    monkeypatch.setattr(
+        insights.httpx,
+        "post",
+        lambda *a, **k: httpx.Response(
+            200,
+            request=httpx.Request("POST", "https://api.openai.com/v1/responses"),
+            json={"status": "completed", "output": output},
+        ),
+    )
+    with pytest.raises(insights.InvalidInsight):
+        insights.generate_insight(customer)
 
 
 def test_grounded_output_and_privacy(customer, monkeypatch):
@@ -163,12 +187,15 @@ def test_rejects_free_text_claims(customer):
 
 
 def test_provider_request(customer, monkeypatch):
-    monkeypatch.setattr(get_settings(), "anthropic_api_key", "test-key")
+    monkeypatch.setattr(get_settings(), "openai_api_key", "test-key")
     monkeypatch.setattr(get_settings(), "insights_model", "test-model")
     facts = insights.facts_for(customer)
 
     def post(url, **kwargs):
-        assert url == "https://api.anthropic.com/v1/messages"
+        assert url == "https://api.openai.com/v1/responses"
+        assert kwargs["headers"] == {"Authorization": "Bearer test-key"}
+        assert kwargs["json"]["store"] is False
+        assert kwargs["json"]["instructions"] == insights.SYSTEM
         assert kwargs["timeout"] == 20
         assert kwargs["json"]["model"] == "test-model"
         assert customer.customer_id not in json.dumps(kwargs["json"])
@@ -176,17 +203,23 @@ def test_provider_request(customer, monkeypatch):
             200,
             request=httpx.Request("POST", url),
             json={
-                "stop_reason": "end_turn",
-                "content": [
+                "status": "completed",
+                "output": [
+                    {"type": "reasoning", "summary": []},
                     {
-                        "type": "text",
-                        "text": json.dumps(
+                        "type": "message",
+                        "content": [
                             {
-                                "facts": facts,
-                                "actions": ["welcome"],
+                                "type": "output_text",
+                                "text": json.dumps(
+                                    {
+                                        "facts": facts,
+                                        "actions": ["welcome"],
+                                    }
+                                ),
                             }
-                        ),
-                    }
+                        ],
+                    },
                 ],
             },
         )
@@ -197,13 +230,13 @@ def test_provider_request(customer, monkeypatch):
 
 @pytest.mark.parametrize("code", [401, 429, 500])
 def test_provider_failure_is_sanitized(customer, monkeypatch, code):
-    monkeypatch.setattr(get_settings(), "anthropic_api_key", "secret")
+    monkeypatch.setattr(get_settings(), "openai_api_key", "secret")
     monkeypatch.setattr(get_settings(), "insights_model", "test")
     monkeypatch.setattr(
         insights.httpx,
         "post",
         lambda *a, **k: httpx.Response(
-            code, request=httpx.Request("POST", "https://api.anthropic.com"), text="secret"
+            code, request=httpx.Request("POST", "https://api.openai.com"), text="secret"
         ),
     )
     with pytest.raises(insights.InsightsUnavailable, match="AI provider unavailable"):
@@ -211,7 +244,7 @@ def test_provider_failure_is_sanitized(customer, monkeypatch, code):
 
 
 def test_missing_configuration(customer, monkeypatch):
-    monkeypatch.setattr(get_settings(), "anthropic_api_key", None)
+    monkeypatch.setattr(get_settings(), "openai_api_key", None)
     with pytest.raises(insights.InsightsUnavailable):
         insights.generate_insight(customer)
 
@@ -242,7 +275,7 @@ def test_harness_and_regression_detection():
 
 
 def test_live_harness_detects_wrong_and_unstable_choices(monkeypatch):
-    monkeypatch.setattr(get_settings(), "anthropic_api_key", "test")
+    monkeypatch.setattr(get_settings(), "openai_api_key", "test")
     monkeypatch.setattr(get_settings(), "insights_model", "test")
     calls = 0
 

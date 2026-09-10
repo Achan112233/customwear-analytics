@@ -2,7 +2,7 @@
 
 ## What is implemented
 
-The existing RFM segmentation remains deterministic. Claude selects and orders up to two
+The existing RFM segmentation remains deterministic. OpenAI selects and orders up to two
 marketing experiments from a fixed catalog using stored customer metrics. It does not
 calculate spend, relabel customers, generate unrestricted prose, or execute campaigns.
 Recommendation wording is rendered from reviewed templates. This deliberately constrained
@@ -24,14 +24,16 @@ Set these server-side environment variables (or entries in `.env`):
 
 ```dotenv
 API_KEY=your-own-local-api-access-key
-ANTHROPIC_API_KEY=your-anthropic-api-key
-INSIGHTS_MODEL=your-supported-Claude-model-ID
+OPENAI_API_KEY=your-openai-api-key
+INSIGHTS_MODEL=your-supported-OpenAI-model-ID
 ```
 
 Restart the API after changing configuration. No default model is assumed: choose one
-available to your account. The adapter uses the
-[Anthropic Messages API](https://platform.claude.com/docs/en/api/messages/create).
-The Anthropic key must never be added to frontend code or committed to Git.
+available to your API account that supports text generation through Responses.
+Set INSIGHTS_MODEL to its API model ID, not the product name "ChatGPT". The adapter uses the
+[OpenAI Responses API](https://developers.openai.com/api/docs/guides/text).
+The OpenAI key must never be added to frontend code or committed to Git.
+Requests set store=false and reject incomplete responses, refusals, and missing text.
 Setting API_KEY also protects the existing API routes; a browser must use a server-side
 proxy/session integration before calling a protected backend. Do not expose this shared
 key in a public dashboard bundle.
@@ -50,7 +52,7 @@ Missing application/provider configuration produces 503, a missing customer prod
 fake AI results. Requests have a 20-second timeout and no automatic paid retries.
 
 Only segment, recency, frequency, monetary value and favorite category are sent to
-Anthropic. Customer identifiers and raw orders are excluded. These metrics are still
+OpenAI. Customer identifiers and raw orders are excluded. These metrics are still
 customer-derived data: confirm the brand's permission and provider privacy terms before
 enabling live use. Category values are untrusted input and must not contain personal
 information. Keep the endpoint behind authentication, quotas/rate limits and appropriate
@@ -67,7 +69,7 @@ python -m evals.run
 Normal CI makes no model calls. Tests cover schema failures, invented facts, duplicate or
 ineligible actions, privacy exclusions, authentication, provider failures, and the evaluation
 logic. The offline runner returns `offline-harness-only`: it feeds expected synthetic
-responses through the validator. Its passing score is NOT measured Claude quality.
+responses through the validator. Its passing score is NOT measured OpenAI quality.
 
 The golden dataset in `evals/cases.json` includes new, inactive, loyal, sparse-data,
 threshold-boundary and malicious-category cases. Expected primary actions are a small,

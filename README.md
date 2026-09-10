@@ -120,7 +120,7 @@ The hosted dashboard calls the FastAPI ingestion and analytics routes, with loca
 
 ## AI recommendations
 
-An optional Claude-backed endpoint selects grounded marketing recommendations from stored
+An optional OpenAI-backed endpoint selects grounded marketing recommendations from stored
 customer metrics: `POST /api/v1/customers/{customer_id}/insights`. It requires server-side
 API credentials and rejects altered facts or unsupported actions. Existing segmentation
 remains rule-based. No model calls occur during normal tests or CI.

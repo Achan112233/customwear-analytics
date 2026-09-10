@@ -37,7 +37,7 @@ class Selection(BaseModel):
 class Insight(BaseModel):
     customer_id: str
     run_id: int
-    provider: str = "anthropic"
+    provider: str = "openai"
     model: str
     prompt_version: str = PROMPT_VERSION
     facts: dict[str, str | int | None]
@@ -92,17 +92,18 @@ def validate_selection(raw: str, facts: dict) -> Selection:
 
 def call_model(facts: dict) -> str:
     settings = get_settings()
-    if not settings.anthropic_api_key or not settings.insights_model:
-        raise InsightsUnavailable("Configure ANTHROPIC_API_KEY and INSIGHTS_MODEL")
+    if not settings.openai_api_key or not settings.insights_model:
+        raise InsightsUnavailable("Configure OPENAI_API_KEY and INSIGHTS_MODEL")
     try:
         response = httpx.post(
-            "https://api.anthropic.com/v1/messages",
-            headers={"x-api-key": settings.anthropic_api_key, "anthropic-version": "2023-06-01"},
+            "https://api.openai.com/v1/responses",
+            headers={"Authorization": f"Bearer {settings.openai_api_key}"},
             json={
                 "model": settings.insights_model,
-                "max_tokens": 700,
-                "system": SYSTEM,
-                "messages": [
+                "max_output_tokens": 2000,
+                "store": False,
+                "instructions": SYSTEM,
+                "input": [
                     {
                         "role": "user",
                         "content": json.dumps(
@@ -120,9 +121,20 @@ def call_model(facts: dict) -> str:
         )
         response.raise_for_status()
         body = response.json()
-        if body.get("stop_reason") != "end_turn":
+        if body.get("status") != "completed":
             raise InvalidInsight("Incomplete model response")
-        return "".join(part["text"] for part in body["content"] if part["type"] == "text")
+        texts = []
+        for item in body["output"]:
+            if item["type"] != "message":
+                continue
+            for part in item["content"]:
+                if part["type"] == "refusal":
+                    raise InvalidInsight("Model refused the request")
+                if part["type"] == "output_text":
+                    texts.append(part["text"])
+        if not texts:
+            raise InvalidInsight("Model returned no text")
+        return "".join(texts)
     except (httpx.HTTPError, ValueError, KeyError, TypeError, AttributeError) as exc:
         raise InsightsUnavailable(
             "AI provider unavailable or returned an invalid response"

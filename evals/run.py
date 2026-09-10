@@ -26,8 +26,8 @@ def run(live: bool = False, repeats: int = 3) -> dict:
     if not 2 <= repeats <= 10:
         raise ValueError("repeats must be between 2 and 10")
     settings = get_settings()
-    if live and (not settings.anthropic_api_key or not settings.insights_model):
-        raise InsightsUnavailable("Configure ANTHROPIC_API_KEY and INSIGHTS_MODEL")
+    if live and (not settings.openai_api_key or not settings.insights_model):
+        raise InsightsUnavailable("Configure OPENAI_API_KEY and INSIGHTS_MODEL")
     rows = []
     for case in json.loads(CASES_PATH.read_text()):
         facts = facts_for(
